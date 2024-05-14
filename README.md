@@ -16,7 +16,7 @@
 ## 💡Model Highlights
  Here we introduce Piccolo2, an embedding model that surpasses other models in the comprehensive evaluation over 6 tasks on CMTEB benchmark, setting a new state-of-the-art. Piccolo2 primarily leverages an efficient multi-task hybrid loss training approach, effectively harnessing textual data and labels from diverse downstream tasks. In addition, Piccolo2 scales up the embedding dimension and uses MRL training to support more flexible vector dimensions.
 
- For huggingface model, please refer to our space: https://huggingface.co/sesenova  
+ For huggingface model, please refer to our space: https://huggingface.co/sensenova  
  For training details, please refer to our tech report: https://arxiv.org/abs/2405.06932
 
 ## 📖 Repo Details
