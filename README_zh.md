@@ -15,7 +15,7 @@
 
 ## 💡Model Highlights
 Piccolo2 在CMTEB榜单上的6项任务的综合评估中超越了其他模型，目前位于第一位。Piccolo2 主要利用高效的多任务混合损失训练方法，有效地利用来自不同下游任务的文本数据和标签。 此外，Piccolo2 扩大了Embedding维度，并使用MRL训练来支持更灵活的向量维度。
-huggingface上放了我们最新的模型: https://huggingface.co/sesenova  
+huggingface上放了我们最新的模型: https://huggingface.co/sensenova  
 对于训练细节，可以参考我们的技术报告: https://arxiv.org/abs/2405.06932
 
 ## 📖 Repo Details
