@@ -36,6 +36,30 @@ def mean_pooling(hidden_state: torch.Tensor, attention_mask: torch.Tensor | None
     attention_mask = attention_mask.float()
     return torch.sum(hidden_state * attention_mask.unsqueeze(-1), dim=1) / torch.sum(attention_mask, dim=-1, keepdim=True)
 
+
+def last_pooling(hidden_state: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+    last_hidden = hidden_state.masked_fill(~attention_mask[..., None].bool(), 0.0)
+    left_padding = attention_mask[:, -1].sum() == attention_mask.shape[0]
+    if left_padding:
+        emb = last_hidden[:, -1]
+    else:
+        sequence_lengths = attention_mask.sum(dim=1) - 1
+        batch_size = last_hidden.shape[0]
+        emb = last_hidden[torch.arange(batch_size), sequence_lengths]
+
+    return emb
+
+def mean_pooling_with_dropout(hidden_state: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+    vector_dropout = torch.nn.Dropout1d(0.3)
+    if attention_mask is None:
+        hidden_state = vector_dropout(hidden_state)
+        return torch.mean(hidden_state, dim=1)
+    attention_mask = attention_mask.float()
+    hidden_state = hidden_state * attention_mask.unsqueeze(-1)
+    hidden_state = vector_dropout(hidden_state)
+    return torch.sum(hidden_state, dim=1) / torch.sum(attention_mask, dim=-1, keepdim=True)
+
+
 def load_hf_pretrained_model(model_name_or_path: str) -> PreTrainedModel:
     config = AutoConfig.from_pretrained(model_name_or_path)
     if config.model_type == 't5':

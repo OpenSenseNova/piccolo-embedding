@@ -41,45 +41,29 @@ class MyCallback(TrainerCallback):
 
 
 class STETrainer(Trainer):
-    def __init__(self, efficient_save, **kwargs):
+    def __init__(self, use_optimum, efficient_save, **kwargs):
         super().__init__(**kwargs)
+        self.use_optimum = use_optimum
         self.efficient_save = efficient_save
 
-    def save_ckpt_for_sentence_transformers(self, tmp_dir, output_dir, pooling_mode: str = 'mean'):
-        '''convert to sentence transformer format'''
-        import shutil
-        from sentence_transformers import models, SentenceTransformer
-        word_embedding_model = models.Transformer(tmp_dir)
-        pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(), pooling_mode='mean')
-        if os.path.exists(os.path.join(tmp_dir, 'scaling_layer.bin')):
-            state_dict = torch.load(os.path.join(tmp_dir, 'scaling_layer.bin'))
-            in_features, out_features = state_dict['linear.weight'].shape[1], state_dict['linear.weight'].shape[0]
-            scaling_layer = models.Dense(in_features, out_features, bias=True, activation_function=torch.nn.modules.linear.Identity())
-            scaling_layer.load_state_dict(state_dict, strict=True)
-            model = SentenceTransformer(modules=[word_embedding_model, pooling_model, scaling_layer], device='cpu')
-        else:
-            model = SentenceTransformer(modules=[word_embedding_model, pooling_model], device='cpu')
-        model.save(output_dir, safe_serialization=False)
-        shutil.rmtree(tmp_dir)
-
     def _save(self, output_dir: Optional[str] = None, **kwargs):
-        '''save the unwrap model'''
-
+        '''save the unwrap model, bcz we use better transformer'''
         output_dir = output_dir if output_dir is not None else self.args.output_dir
         os.makedirs(output_dir, exist_ok=True)
-
         logger.info("Saving model checkpoint to %s", output_dir)
-        unwrap_model = self.model.embedder.encoder
+        if self.use_optimum:
+            from optimum.bettertransformer import BetterTransformer
+            unwrap_model = BetterTransformer.reverse(self.model.embedder.encoder)
+        else:
+            unwrap_model = self.model.embedder.encoder
         if self.is_world_process_zero():
-            # first saves to the tmp dir, then converts to sentence-transformer
-            tmp_dir = output_dir + '-tmp'
-            unwrap_model.save_pretrained(tmp_dir, safe_serialization=self.args.save_safetensors)
-            self.tokenizer.save_pretrained(tmp_dir)
+            unwrap_model.save_pretrained(output_dir, safe_serialization=self.args.save_safetensors)
+            self.tokenizer.save_pretrained(output_dir)
             if hasattr(self.model, 'scaling_layer'):
-                scaling_layer = {'linear.weight': self.model.scaling_layer.state_dict()['linear.weight'].data.cpu(), 
+                scaling_layer_sd_st = {'linear.weight': self.model.scaling_layer.state_dict()['linear.weight'].data.cpu(), 
                                     'linear.bias': self.model.scaling_layer.state_dict()['linear.bias'].data.cpu()}
-                torch.save(scaling_layer, os.path.join(tmp_dir, 'scaling_layer.bin'))
-            self.save_ckpt_for_sentence_transformers(tmp_dir, output_dir, self.model.embedder.pooling_strategy.value)
+                torch.save(scaling_layer_sd_st, os.path.join(output_dir, 'scaling_layer_st.bin'))
+
 
     def _save_checkpoint(self, model, trial, metrics=None):
         if self.efficient_save:
@@ -100,25 +84,32 @@ def main():
     data_args: DataArguments
     training_args: STETrainingArguments
 
-    # DataLoader
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
     all_datasets = load_all_datasets(data_args.meta_paths, data_args.root_dirs, data_args.query_prefix, data_args.doc_prefix)
-    train_dataset = UniDataset(all_datasets, batch_size=data_args.batch_size, neg_num=data_args.neg_num)
+    train_dataset = UniDataset(all_datasets, batch_size=data_args.batch_size, with_instruction=data_args.with_instruction, 
+                               neg_num=data_args.neg_num, drop_last=data_args.drop_last)
     data_collator = UniCollator(tokenizer=tokenizer, max_length=model_args.max_length)
+    loss_kwargs = {'loss_type': model_args.loss_type, 'temperature': model_args.temperature,
+                   'neg_num': data_args.neg_num, 'use_all_pair': data_args.use_all_pair}
  
-    # Model
+ 
     model = STEmbedder(
         model_name_or_path=model_args.model_name_or_path,
+        loss_kwargs = loss_kwargs,
         embedding_strategy=model_args.embedding_strategy,
-        freeze_pos_emb=True,
+        freeze_pos_emb=False, # TODO hard code here, 谁pretrain放开PE啊
         add_scaling_layer=model_args.use_scaling_layer,
         use_mrl=model_args.use_mrl,
-        extend_pe=model_args.extend_pe,
-        max_length=model_args.max_length
+        add_cls_head=model_args.add_cls_head
     )
     model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     
-    # Trainer
+    if training_args.use_optimum:
+        from optimum.bettertransformer import BetterTransformer # optional
+        model.embedder.encoder = BetterTransformer.transform(model.embedder.encoder) # optimum better transformer
+        # model.embedder.encoder = torch.compile(model.embedder.encoder)
+
+
     trainer = STETrainer(
         model=model,
         args=training_args,
@@ -126,7 +117,8 @@ def main():
         data_collator=data_collator,
         tokenizer=tokenizer,
         callbacks=[MyCallback],
-        efficient_save=training_args.efficient_save
+        use_optimum=training_args.use_optimum,
+        efficient_save=training_args.efficient_save,
     )
 
     # save training info
@@ -141,7 +133,12 @@ def main():
                 f.writelines(open(meta_path, 'r').readlines())
                 f.writelines('\n\n')
 
-    trainer.train()
+    # run training
+    if training_args.use_optimum:
+        with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True):
+            trainer.train()
+    else:
+        trainer.train()
 
     # save parameter and model at the end
     if trainer.is_world_process_zero():

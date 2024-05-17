@@ -117,12 +117,16 @@ class UniDataset(Dataset):
         hf_datasets: list[DatsetWithInfo],
         neg_num: int = 1,
         batch_size: int = 32,
+        with_instruction: bool = True,
+        drop_last: bool = True,
         max_samples: int | None = None,
     ):
         self.batch_size = batch_size
+        self.drop_last = drop_last
         self.hf_datasets = hf_datasets
         self.max_samples = max_samples
         self.name_dataset_map = {dataset.name: dataset.hf_dataset for dataset in hf_datasets}
+        self.with_instruction = with_instruction
         self.neg_num = neg_num
         self.query_prefix_map = {dataset.name: dataset.query_prefix for dataset in hf_datasets}
         self.passage_prefix_map = {dataset.name: dataset.passage_prefix for dataset in hf_datasets}
@@ -149,6 +153,15 @@ class UniDataset(Dataset):
                     buffer = []
         self.random_index_list = list(RandomSampler(self.task_batch_index_list))
 
+    def get_clsf_records(self, records, task_name):
+        cls_records = []
+        for record in records:
+            text = record['text']
+            text_label = record['label']
+            if not self.is_valid_text(text):
+                continue
+            cls_records.append(PairCLSRecord(text=text, text_label=text_label))
+        return cls_records
 
     def get_pair_scored_records(self, records, task_name):
         pair_records = []

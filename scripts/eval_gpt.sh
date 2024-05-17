@@ -6,7 +6,7 @@ set -e
 DIR="$(cd "$(dirname "$0")" && cd .. && pwd)"
 echo "working directory: ${DIR}"
 
-NAME='Qwen7B'
+NAME='Qwen7B-FT'
 MODEL_NAME_OR_PATH="/mnt/lustre/tangyang2/hjq/model/Qwen7B-gte/"
 MAX_LENGTH=512
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")

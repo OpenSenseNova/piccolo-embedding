@@ -24,14 +24,12 @@ import torch.nn.functional as F
 from mteb import MTEB, AbsTaskRetrieval, DRESModel
 
 from utils import (
-    pool,
     logger,
     move_to_cuda,
     get_detailed_instruct,
     get_task_def_by_task_name_and_type,
     input_transform_func,
 )
-from model_config import MODEL_NAME_TO_POOL_TYPE, MODEL_NAME_TO_PREFIX_TYPE
 
 parser = argparse.ArgumentParser(description="evaluation for BEIR benchmark")
 parser.add_argument(

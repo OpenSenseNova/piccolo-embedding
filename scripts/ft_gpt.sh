@@ -1,4 +1,4 @@
-ROOT=/mnt/lustre/tangyang2/hjq/embedding/gpt_ft
+ROOT=/mnt/lustre/hjq/piccolo-embedding/
 export PYTHONPATH=$ROOT:${PYTHONPATH}
 
 # SLURM Parameter
@@ -11,7 +11,7 @@ if [ -z "$WORLD_SIZE" ]; then
 fi
 
 # WorkSpace Param
-JOBNAME='Fine-Tuning-Gritlm'
+JOBNAME='Fine-Tuning-GPT'
 OUTPUTDIR=$ROOT/outputs
 LOGDIR=$ROOT/logs
 mkdir -p $LOGDIR
@@ -88,7 +88,7 @@ export LAUNCHER="python -u -m torch.distributed.run \
     "
 
 export CMD=" \
-    $ROOT/uniem/train_ste.py \
+    $ROOT/finetune/train_gpt.py \
     "
 
 echo $CMD
