@@ -1,6 +1,6 @@
 <small>[EN](README.md) | [简体中文](README_zh.md) </small>
 
-# [Piccolo2: General Text Embeddings with Multi-Task Hybrid loss Training](https://arxiv.org/abs/2309.12871)
+# [Piccolo2: General Text Embeddings with Multi-Task Hybrid loss Training](https://arxiv.org/abs/2405.06932)
 
 🚀 **New SOTA on CMTEB** 
 
