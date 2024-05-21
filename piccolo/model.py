@@ -2,11 +2,18 @@ import numpy as np
 import torch
 import os
 
-from transformers import AutoConfig, AutoModel, AutoTokenizer, PreTrainedModel, AutoModelForCausalLM
+from transformers import (
+    AutoConfig,
+    AutoModel,
+    AutoTokenizer,
+    PreTrainedModel,
+    AutoModelForCausalLM,
+)
 from enum import Enum
 from pathlib import Path
 from typing import ClassVar, Literal, Type, TypeVar, cast
-  # type: ignore
+
+# type: ignore
 from piccolo.criteria import (
     CoSentLoss,
     ClsContrastLoss,
@@ -83,9 +90,13 @@ def load_hf_pretrained_model(model_name_or_path: str) -> PreTrainedModel:
     if config.model_type == "t5":
         from transformers import T5EncoderModel  # type: ignore
 
-        pretrained_model = T5EncoderModel.from_pretrained(model_name_or_path, trust_remote_code=True)
+        pretrained_model = T5EncoderModel.from_pretrained(
+            model_name_or_path, trust_remote_code=True
+        )
     else:
-        pretrained_model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True)
+        pretrained_model = AutoModel.from_pretrained(
+            model_name_or_path, trust_remote_code=True
+        )
     return pretrained_model  # type: ignore
 
 
@@ -127,6 +138,7 @@ class Embedder(torch.nn.Module):
     @property
     def max_length(self):
         return self.encoder.config.max_position_embeddings
+
 
 class LastEmbedder(Embedder):
     pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.last_mean
@@ -552,7 +564,11 @@ class GPTEmbedder(EmbedderForTrain):
         return {"loss": loss}
 
     def compute_scored_pair_loss(
-        self, text_ids: torch.Tensor, text_pair_ids: torch.Tensor, labels: torch.Tensor, type: str = "cosent"
+        self,
+        text_ids: torch.Tensor,
+        text_pair_ids: torch.Tensor,
+        labels: torch.Tensor,
+        type: str = "cosent",
     ):
         text_embeddings = self.get_embedding(text_ids)
         text_pair_embeddings = self.get_embedding(text_pair_ids)

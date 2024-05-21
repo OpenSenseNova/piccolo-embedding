@@ -371,7 +371,9 @@ class UniDataset(Dataset):
             if self.with_instruction:
                 text = self.query_prefix_map[task_name] + text
                 text_pos = self.passage_prefix_map[task_name] + text_pos
-                text_neg = [self.passage_prefix_map[task_name] + neg for neg in text_neg]
+                text_neg = [
+                    self.passage_prefix_map[task_name] + neg for neg in text_neg
+                ]
             return text, text_pos, text_neg
 
         pair_records = []
